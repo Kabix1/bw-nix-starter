@@ -1,0 +1,113 @@
+--- a/StardustDevEnvironment/3rdparty/openbw/bwapi/bwapi/include/BWAPI/Game.h
++++ b/StardustDevEnvironment/3rdparty/openbw/bwapi/bwapi/include/BWAPI/Game.h
+@@ -1,4 +1,5 @@
+ #pragma once
++#include <cstdint>
+ #include <list>
+ #include <string>
+ #include <cstdarg>
+--- a/StardustDevEnvironment/src/Instrumentation/CherryVis.cpp
++++ b/StardustDevEnvironment/src/Instrumentation/CherryVis.cpp
+@@ -1,4 +1,5 @@
+ #include "CherryVis.h"
++#include <climits>
+ 
+ #include <nlohmann/json.hpp>
+ #include <utility>
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Steamhammer/BOSS/source/BOSSAssert.cpp
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Steamhammer/BOSS/source/BOSSAssert.cpp
+@@ -1,4 +1,5 @@
+ #include "BOSSAssert.h"
++#include <cstring>
+ #include "BOSSException.h"
+ 
+ using namespace BOSS;
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Locutus/BOSS/source/BOSSAssert.cpp
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Locutus/BOSS/source/BOSSAssert.cpp
+@@ -1,4 +1,5 @@
+ #include "BOSSAssert.h"
++#include <cstring>
+ #include "BOSSException.h"
+ 
+ using namespace BOSS;
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Locutus/Locutus/Source/Common.h
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Locutus/Locutus/Source/Common.h
+@@ -4,6 +4,7 @@
+ #include <cmath>
+ #include <math.h>
+ #include <cstdlib>
++#include <climits>
+ 
+ #include <stdexcept>
+ #include <string>
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Locutus/Locutus/Source/FAP.cpp
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Locutus/Locutus/Source/FAP.cpp
+@@ -1,4 +1,5 @@
+ #include "FAP.h"
++#include <cstring>
+ #include "BWAPI.h"
+ #include "InformationManager.h"
+ #include "MathUtil.h"
+--- a/StardustDevEnvironment/test/Maps.h
++++ b/StardustDevEnvironment/test/Maps.h
+@@ -1,6 +1,8 @@
+ #pragma once
+ 
+ #include <functional>
++#include <algorithm>
++#include <memory>
+ 
+ #include <vector>
+ #include <string>
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Steamhammer/CMakeLists.txt
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Steamhammer/CMakeLists.txt
+@@ -16,3 +16,8 @@
+ target_link_libraries(Steamhammer BWAPILIB)
+ target_include_directories(Steamhammer SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/Steamhammer/Source)
+ target_compile_options(Steamhammer PRIVATE -w)
++
++# These opponents embed overlapping BOSS/Config/fap symbols.
++if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++  target_link_options(Steamhammer PRIVATE "-Wl,-Bsymbolic")
++endif()
+--- a/StardustDevEnvironment/test/3rdparty/opponents/Locutus/CMakeLists.txt
++++ b/StardustDevEnvironment/test/3rdparty/opponents/Locutus/CMakeLists.txt
+@@ -19,3 +19,8 @@
+ target_link_libraries(Locutus BWAPILIB)
+ target_include_directories(Locutus SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/Locutus/Source)
+ target_compile_options(Locutus PRIVATE -w)
++
++# These opponents embed overlapping BOSS/Config/fap symbols.
++if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++  target_link_options(Locutus PRIVATE "-Wl,-Bsymbolic")
++endif()
+--- a/scripts/bw-test
++++ b/scripts/bw-test
+@@ -7,12 +7,14 @@
+   exit 1
+ fi
+ if [[ " $* " != *" --gtest_list_tests "* ]]; then
+-  for file in STARDAT.MPQ BROODAT.MPQ patch_rt.mpq; do
++  for pair in STARDAT.MPQ:StarDat.mpq BROODAT.MPQ:BrooDat.mpq patch_rt.mpq:Patch_rt.mpq; do
++    file="${pair%%:*}"
++    engine_file="${pair#*:}"
+     if [[ ! -f "$root/data/$file" ]]; then
+       echo "Missing $root/data/$file — copy it from your Brood War installation." >&2
+       exit 1
+     fi
+-    ln -sfn "$root/data/$file" "$runtime/$file"
++    ln -sfn "$root/data/$file" "$runtime/$engine_file"
+   done
+ fi
+ # Tests run headlessly by default; set OPENBW_ENABLE_UI=1 for the viewer.
+--- a/replay-viewer/main.cpp
++++ b/replay-viewer/main.cpp
+@@ -294,7 +294,7 @@
+                 for (int i = 0; i < 128 && ui.st.current_frame < target; ++i) advance();
+                 last = now;
+             } else if (!ui.is_paused && !ui.is_done()) {
+-                auto delay = std::chrono::milliseconds(std::max(1, (fp8::integer(42) / ui.game_speed).integer_part()));
++                auto delay = std::chrono::milliseconds(std::max<std::chrono::milliseconds::rep>(1, (fp8::integer(42) / ui.game_speed).integer_part()));
+                 int frames = std::min(16, (int)((now - last) / delay));
+                 for (int i = 0; i < frames && !ui.is_done(); ++i) advance();
+                 if (frames) { ui.replay_frame = ui.st.current_frame; last = now; }

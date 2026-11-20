@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export BW_STARTER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export BW_ENV_ROOT="$BW_STARTER_ROOT"
+export BW_BUILD_JOBS="${BW_BUILD_JOBS:-2}"
+cd "$BW_STARTER_ROOT"
+if [[ $# -eq 0 ]]; then set -- bash; fi
+exec nix --extra-experimental-features 'nix-command flakes' develop ./nix --no-write-lock-file -c "$@"

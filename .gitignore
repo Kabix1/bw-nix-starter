@@ -1,0 +1,7 @@
+/build/
+/data/*.mpq
+/data/*.MPQ
+.direnv/
+.env
+.DS_Store
+.nix-compat

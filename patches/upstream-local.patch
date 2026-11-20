@@ -1,0 +1,115 @@
+diff --git a/3rdparty/nlohmann/json.hpp b/3rdparty/nlohmann/json.hpp
+index c4dd968..e0d43cd 100644
+--- a/3rdparty/nlohmann/json.hpp
++++ b/3rdparty/nlohmann/json.hpp
+@@ -17140,7 +17140,7 @@ if no parse error occurred.
+ 
+ @since version 1.0.0
+ */
+-inline nlohmann::json operator "" _json(const char* s, std::size_t n)
++inline nlohmann::json operator""_json(const char* s, std::size_t n)
+ {
+     return nlohmann::json::parse(s, s + n);
+ }
+@@ -17158,7 +17158,7 @@ object if no parse error occurred.
+ 
+ @since version 2.0.0
+ */
+-inline nlohmann::json::json_pointer operator "" _json_pointer(const char* s, std::size_t n)
++inline nlohmann::json::json_pointer operator""_json_pointer(const char* s, std::size_t n)
+ {
+     return nlohmann::json::json_pointer(std::string(s, n));
+ }
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 9563c31..adb7fb3 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -18,7 +18,7 @@ add_library(DemoAIModule SHARED ${SRC_FILES})
+ IF (MSVC)
+     target_link_libraries(DemoAIModule BWAPILIB libzstd_static)
+ ELSE (MSVC)
+-    target_link_libraries(DemoAIModule -L/usr/local/Cellar/llvm/13.0.0_2/lib BWAPILIB libzstd_static)
++    target_link_libraries(DemoAIModule BWAPILIB libzstd_static)
+ ENDIF (MSVC)
+ 
+ target_include_directories(DemoAIModule PUBLIC ${SRC_INCLUDES})
+diff --git a/test/3rdparty/opponents/Locutus/CMakeLists.txt b/test/3rdparty/opponents/Locutus/CMakeLists.txt
+index ccaa991..c2461f2 100644
+--- a/test/3rdparty/opponents/Locutus/CMakeLists.txt
++++ b/test/3rdparty/opponents/Locutus/CMakeLists.txt
+@@ -16,6 +16,6 @@ include_directories(${LOCUTUS_INCLUDES})
+ 
+ add_library(Locutus SHARED ${SRC_FILES} ${BOSS_SRC_FILES} ${BWTA_SRC_FILES} ${BWEM_SRC_FILES} ${BWEB_SRC_FILES})
+ 
+-target_link_libraries(Locutus -L/usr/local/Cellar/llvm/13.0.0_2/lib BWAPILIB)
++target_link_libraries(Locutus BWAPILIB)
+ target_include_directories(Locutus SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/Locutus/Source)
+ target_compile_options(Locutus PRIVATE -w)
+diff --git a/test/3rdparty/opponents/Steamhammer/CMakeLists.txt b/test/3rdparty/opponents/Steamhammer/CMakeLists.txt
+index 7a13a1e..54c6a16 100644
+--- a/test/3rdparty/opponents/Steamhammer/CMakeLists.txt
++++ b/test/3rdparty/opponents/Steamhammer/CMakeLists.txt
+@@ -13,6 +13,6 @@ list(FILTER BOSS_SRC_FILES EXCLUDE REGEX deprecated)
+ 
+ add_library(Steamhammer SHARED ${SRC_FILES} ${BOSS_SRC_FILES})
+ 
+-target_link_libraries(Steamhammer -L/usr/local/Cellar/llvm/13.0.0_2/lib BWAPILIB)
++target_link_libraries(Steamhammer BWAPILIB)
+ target_include_directories(Steamhammer SYSTEM PUBLIC ${PROJECT_SOURCE_DIR}/Steamhammer/Source)
+ target_compile_options(Steamhammer PRIVATE -w)
+diff --git a/test/3rdparty/opponents/Steamhammer/Steamhammer/Source/ParseUtils.cpp b/test/3rdparty/opponents/Steamhammer/Steamhammer/Source/ParseUtils.cpp
+index 15d0bfd..6c766c3 100644
+--- a/test/3rdparty/opponents/Steamhammer/Steamhammer/Source/ParseUtils.cpp
++++ b/test/3rdparty/opponents/Steamhammer/Steamhammer/Source/ParseUtils.cpp
+@@ -218,7 +218,7 @@ void ParseUtils::ParseConfigFile(const std::string & filename)
+ 
+ 		// 0. Parse all the openings.
+ 		// Besides making them all available, this checks that they are syntatically valid.
+-		std::vector<const std::string> openingNames;		// in case we want to make a random choice
++		std::vector<std::string> openingNames;		// in case we want to make a random choice
+ 		if (strategy.HasMember("Strategies") && strategy["Strategies"].IsObject())
+ 		{
+ 			const rapidjson::Value & strategies = strategy["Strategies"];
+diff --git a/test/Maps.h b/test/Maps.h
+index b345aa9..bb11370 100644
+--- a/test/Maps.h
++++ b/test/Maps.h
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include <functional>
++
+ #include <vector>
+ #include <string>
+ 
+diff --git a/test/Steamhammer.cpp b/test/Steamhammer.cpp
+index 1cacd1f..25d294c 100644
+--- a/test/Steamhammer.cpp
++++ b/test/Steamhammer.cpp
+@@ -1,6 +1,26 @@
+ #include "BWTest.h"
+ #include "UAlbertaBotModule.h"
+ 
++TEST(Steamhammer, RunOne)
++{
++    BWTest test;
++    test.opponentRace = BWAPI::Races::Zerg;
++    test.maps = Maps::Get("aiide");
++    test.opponentModule = []()
++    {
++        return new UAlbertaBot::UAlbertaBotModule();
++    };
++    test.onStartOpponent = []()
++    {
++        std::cout << "Steamhammer strategy: " << Config::Strategy::StrategyName << std::endl;
++        std::cout.setstate(std::ios_base::failbit);
++        std::cerr.setstate(std::ios_base::failbit);
++    };
++    // This is an opponent smoke test, so a demo-bot loss is a valid result.
++    test.expectWin = false;
++    test.run();
++}
++
+ TEST(Steamhammer, RunTwenty)
+ {
+     int count = 0;

@@ -1,0 +1,24 @@
+{
+  "upstream": "https://github.com/bmnielsen/StardustDevEnvironment",
+  "upstream_revision": "37127c60cdd86bf0b81898a5a476747e4633efd7",
+  "nixpkgs_revision": "b6018f87da91d19d0ab4cf979885689b469cdd41",
+  "patches_already_applied": [
+    "patches/upstream-local.patch",
+    "patches/linux-portability.patch"
+  ],
+  "packaging_changes": [
+    "Nix flake moved to nix/ to exclude runtime outputs from flake snapshots.",
+    "Build helpers use nix/; dev supplies the source root and defaults to two build jobs.",
+    "Mac registry/graphical launcher omitted.",
+    "Added instructions and bw-check entry point."
+  ],
+  "matched_previously_verified_source_files": 2715,
+  "verification_scope": "x86_64 Linux; headless game, shared modules and replay export. WSL itself and interactive graphics untested.",
+  "omitted_unused_source_asset": "StardustDevEnvironment/3rdparty/openbw/bwapi/bwapi/SNP_DirectIP/SNP/caps.mpq",
+  "repository": "https://github.com/Kabix1/bw-nix-starter",
+  "validated_archive_sha256": "3a57b128ad08f22a9d18ed39368fae358c65857d25144de305e1b0cde0f75182",
+  "repository_changes": [
+    "GitHub clone/download instructions and Blizzard MPQ download instructions.",
+    "Added Linux validation summary; runtime code and Nix lock unchanged."
+  ]
+}

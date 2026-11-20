@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+runtime="$root/build/test"
+if [[ ! -x "$runtime/tests" ]]; then
+  echo "Build first: nix develop -c bw-build" >&2
+  exit 1
+fi
+if [[ " $* " != *" --gtest_list_tests "* ]]; then
+  for pair in STARDAT.MPQ:StarDat.mpq BROODAT.MPQ:BrooDat.mpq patch_rt.mpq:Patch_rt.mpq; do
+    file="${pair%%:*}"
+    engine_file="${pair#*:}"
+    if [[ ! -f "$root/data/$file" ]]; then
+      echo "Missing $root/data/$file — copy it from your Brood War installation." >&2
+      exit 1
+    fi
+    ln -sfn "$root/data/$file" "$runtime/$engine_file"
+  done
+fi
+# Tests run headlessly by default; set OPENBW_ENABLE_UI=1 for the viewer.
+export OPENBW_ENABLE_UI="${OPENBW_ENABLE_UI:-0}"
+cd "$runtime"
+exec ./tests "$@"

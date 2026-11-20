@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+env_root="${BW_ENV_ROOT:-$root}"
+upstream="$env_root/StardustDevEnvironment/3rdparty/openbw"
+src="$root/build/watch-ui-src"
+mkdir -p "$src"
+if [[ ! -d "$src/openbw" ]]; then cp -R "$upstream/openbw" "$src/openbw"; fi
+python3 - "$src/openbw/ui/ui.h" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+old = 'rgba_surface->set_alpha(0);'
+new = 'rgba_surface->set_alpha(255);'
+if old in s:
+    if s.count(old) != 1: raise SystemExit('Unexpected OpenBW alpha occurrences')
+    p.write_text(s.replace(old, new))
+elif new not in s:
+    raise SystemExit('OpenBW alpha initialization changed; inspect before continuing')
+PY
+python3 - "$src/openbw/ui/sdl2.cpp" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+old = '//col[i].a = colors[i].a;'
+new = 'col[i].a = 255; // Opaque palette for SDL3-backed SDL2 compatibility.'
+if old in s:
+    if s.count(old) != 1: raise SystemExit('Unexpected OpenBW palette occurrences')
+    p.write_text(s.replace(old, new))
+elif new not in s:
+    raise SystemExit('OpenBW palette initialization changed; inspect before continuing')
+PY
+cat > "$src/CMakeLists.txt" <<'CMAKE'
+cmake_minimum_required(VERSION 3.20)
+project(WatchUI LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(OPENBW_ENABLE_UI ON CACHE BOOL "" FORCE)
+set(OPENBW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/openbw" CACHE PATH "" FORCE)
+add_subdirectory("${BWAPI_ROOT}/OpenBWData" openbwdata)
+target_include_directories(OpenBWData PRIVATE "${BWAPI_ROOT}/include" "${BWAPI_ROOT}/Shared")
+add_executable(replay-viewer "${VIEWER_ROOT}/replay-viewer/main.cpp")
+target_include_directories(replay-viewer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/openbw")
+target_link_libraries(replay-viewer PRIVATE openbw_ui)
+CMAKE
+nix_bin="$(command -v nix || true)"
+if [[ -z "$nix_bin" ]]; then nix_bin=/nix/var/nix/profiles/default/bin/nix; fi
+exec "$nix_bin" --extra-experimental-features 'nix-command flakes' develop "$env_root/nix" -c bash -c '
+    set -euo pipefail
+    cmake -S "$1/build/watch-ui-src" -B "$1/build/watch-ui-build" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBWAPI_ROOT="$2" -DVIEWER_ROOT="$1"
+    cmake --build "$1/build/watch-ui-build" --parallel "${BW_BUILD_JOBS:-4}"
+' bash "$root" "$upstream/bwapi/bwapi"
